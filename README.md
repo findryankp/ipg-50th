@@ -26,7 +26,7 @@ lokal) — semua data tetap tersimpan di SQLite dan menunggu di `sync_queue` sam
 dan servernya dijalankan ulang. Kredensial **sengaja tidak di-hardcode** di source code — selalu
 lewat env var.
 
-Buka http://localhost:8080 — akan redirect ke halaman login.
+Buka http://localhost:8082 — akan redirect ke halaman login.
 
 Akun PIC awal (dibuat otomatis saat pertama kali dijalankan):
 
