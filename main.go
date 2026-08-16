@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"database/sql"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	_ "github.com/microsoft/go-mssqldb"
@@ -17,6 +19,8 @@ import (
 )
 
 func main() {
+	loadDotEnv(".env")
+
 	conn := db.Open("data/registrasi.db")
 	defer conn.Close()
 
@@ -105,4 +109,34 @@ func getenvDefault(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// loadDotEnv membaca file .env sederhana (KEY=VALUE per baris, "#" untuk
+// komentar) dan mengisi environment proses ini. Variabel yang sudah di-set
+// lewat env asli (misal oleh systemd/docker) tidak ditimpa. File opsional --
+// kalau tidak ada, ini no-op senyap (biar tetap bisa diatur lewat env var
+// biasa di produksi).
+func loadDotEnv(path string) {
+	f, err := os.Open(path)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		key, value, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		key = strings.TrimSpace(key)
+		value = strings.Trim(strings.TrimSpace(value), `"'`)
+		if _, exists := os.LookupEnv(key); !exists {
+			os.Setenv(key, value)
+		}
+	}
 }
