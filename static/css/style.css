@@ -1,0 +1,167 @@
+:root {
+	--primary: #2563eb;
+	--primary-dark: #1d4ed8;
+	--bg: #f4f6f8;
+	--card-bg: #ffffff;
+	--border: #d9dee3;
+	--text: #1f2937;
+	--muted: #6b7280;
+	--success: #16a34a;
+	--danger: #dc2626;
+}
+
+* { box-sizing: border-box; }
+
+body {
+	margin: 0;
+	font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+	background: var(--bg);
+	color: var(--text);
+}
+
+.topbar {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 0.75rem 1.25rem;
+	background: var(--card-bg);
+	border-bottom: 1px solid var(--border);
+}
+
+.topbar nav a {
+	margin-left: 1rem;
+	color: var(--primary);
+	text-decoration: none;
+	font-weight: 600;
+}
+
+.container {
+	max-width: 720px;
+	margin: 0 auto;
+	padding: 1.25rem;
+}
+
+h1 { font-size: 1.4rem; margin-bottom: 1rem; }
+h2 { font-size: 1.1rem; margin-top: 0; }
+
+.center-box {
+	min-height: 100vh;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.card {
+	background: var(--card-bg);
+	border: 1px solid var(--border);
+	border-radius: 12px;
+	padding: 1.5rem;
+	margin-top: 1rem;
+}
+
+label {
+	display: block;
+	margin: 0.6rem 0 0.25rem;
+	font-size: 0.85rem;
+	color: var(--muted);
+}
+
+input[type="text"] {
+	width: 100%;
+	padding: 0.6rem 0.7rem;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	font-size: 1rem;
+}
+
+button {
+	margin-top: 1rem;
+	padding: 0.65rem 1.2rem;
+	border: none;
+	border-radius: 8px;
+	background: var(--primary);
+	color: white;
+	font-size: 1rem;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+button:hover { background: var(--primary-dark); }
+
+button.secondary {
+	background: transparent;
+	color: var(--primary);
+	border: 1px solid var(--primary);
+	margin-left: 0.5rem;
+}
+
+.error { color: var(--danger); font-weight: 600; }
+
+.camera-box {
+	width: 100%;
+	max-width: 480px;
+	margin: 0 auto;
+	border-radius: 12px;
+	overflow: hidden;
+	background: #000;
+	aspect-ratio: 4 / 3;
+}
+
+#video {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.camera-controls {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	margin-top: 0.75rem;
+	max-width: 480px;
+	margin-left: auto;
+	margin-right: auto;
+}
+
+.status { color: var(--muted); font-size: 0.9rem; }
+
+.info-table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.info-table th, .info-table td {
+	text-align: left;
+	padding: 0.4rem 0.5rem;
+	border-bottom: 1px solid var(--border);
+}
+
+.riwayat-table th { background: #eef2f6; }
+
+.sync-bar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+	margin-top: 1rem;
+	padding: 0.6rem 0.9rem;
+	background: #fff7ed;
+	border: 1px solid #fdba74;
+	border-radius: 8px;
+	font-size: 0.9rem;
+	color: #9a3412;
+}
+
+.sync-bar button { margin: 0; }
+
+.badge-pending {
+	background: #fff7ed;
+	border: 1px solid #fdba74;
+	color: #9a3412;
+	padding: 0.4rem 0.6rem;
+	border-radius: 6px;
+	font-size: 0.85rem;
+	font-weight: 600;
+}
+
+.status.hint { font-size: 0.8rem; margin-top: 0.4rem; }

@@ -1,0 +1,42 @@
+{{define "riwayat.html"}}
+<!DOCTYPE html>
+<html lang="id">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Riwayat Scan</title>
+	<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+	<header class="topbar">
+		<span>Login sebagai <strong>{{.PIC}}</strong></span>
+		<nav>
+			<a href="/scan">Scan</a>
+			<a href="/logout">Keluar</a>
+		</nav>
+	</header>
+
+	<main class="container">
+		<h1>Riwayat Scan</h1>
+		<table class="info-table riwayat-table">
+			<thead>
+				<tr><th>Waktu</th><th>No Peserta</th><th>Nama</th><th>Aksi</th><th>PIC</th></tr>
+			</thead>
+			<tbody>
+				{{range .Riwayat}}
+				<tr>
+					<td>{{.Waktu}}</td>
+					<td>{{.NoPeserta}}</td>
+					<td>{{.Nama}}</td>
+					<td>{{.Aksi}}</td>
+					<td>{{.PIC}}</td>
+				</tr>
+				{{else}}
+				<tr><td colspan="5">Belum ada riwayat</td></tr>
+				{{end}}
+			</tbody>
+		</table>
+	</main>
+</body>
+</html>
+{{end}}

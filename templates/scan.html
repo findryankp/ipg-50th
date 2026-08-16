@@ -1,0 +1,78 @@
+{{define "scan.html"}}
+<!DOCTYPE html>
+<html lang="id">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Scan QR</title>
+	<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+	<header class="topbar">
+		<span>Login sebagai <strong>{{.PIC}}</strong></span>
+		<nav>
+			<a href="/riwayat">Riwayat</a>
+			<a href="/logout">Keluar</a>
+		</nav>
+	</header>
+
+	<main class="container">
+		<h1>Scan QR Code</h1>
+
+		<div class="camera-box">
+			<video id="video" autoplay playsinline muted></video>
+			<canvas id="canvas" hidden></canvas>
+		</div>
+
+		<div class="camera-controls">
+			<button id="btnStart" type="button" hidden>Nyalakan Kamera</button>
+			<button id="btnStop" type="button" hidden>Matikan Kamera</button>
+			<span id="scanStatus" class="status"></span>
+		</div>
+
+		<div id="syncBar" class="sync-bar" hidden>
+			<span></span>
+			<button id="btnSync" type="button" class="secondary">Sinkronkan Sekarang</button>
+		</div>
+
+		<section id="result" class="result" hidden></section>
+
+		<template id="tplFound">
+			<div class="card">
+				<h2>Data Peserta</h2>
+				<p class="badge-pending" data-pending hidden>Menunggu sinkronisasi data pegawai dari CI...</p>
+				<table class="info-table">
+					<tr><th>No Peserta</th><td data-f="no_peserta"></td></tr>
+					<tr><th>Noreg</th><td data-f="noreg"></td></tr>
+					<tr><th>Nama</th><td data-f="nama"></td></tr>
+					<tr><th>Divisi</th><td data-f="divisi"></td></tr>
+					<tr><th>Dept</th><td data-f="dept"></td></tr>
+					<tr><th>Jabatan</th><td data-f="jobtitle"></td></tr>
+					<tr><th>Kelas</th><td data-f="kelas"></td></tr>
+					<tr><th>Check-in</th><td data-f="checkin_at"></td></tr>
+				</table>
+				<button id="btnCheckin" type="button">Check-in</button>
+				<button id="btnScanLagi" type="button" class="secondary">Scan Lagi</button>
+			</div>
+		</template>
+
+		<template id="tplNotFound">
+			<div class="card">
+				<h2>Peserta Belum Terdaftar</h2>
+				<p>Kode: <strong data-f="kode"></strong></p>
+				<form id="formRegistrasi">
+					<input type="hidden" name="no_peserta">
+					<label>Noreg</label>
+					<input type="text" name="noreg" required autofocus>
+					<p class="status hint">Nama, divisi, dept, jabatan &amp; kelas diambil otomatis dari data pegawai (CI) berdasarkan noreg.</p>
+					<button type="submit">Simpan Registrasi</button>
+					<button type="button" id="btnScanLagi2" class="secondary">Scan Lagi</button>
+				</form>
+			</div>
+		</template>
+	</main>
+
+	<script src="/static/js/scan.js"></script>
+</body>
+</html>
+{{end}}
