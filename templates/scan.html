@@ -20,8 +20,7 @@
 		<h1>Scan QR Code</h1>
 
 		<div class="camera-box">
-			<video id="video" autoplay playsinline muted></video>
-			<canvas id="canvas" hidden></canvas>
+			<div id="reader"></div>
 		</div>
 
 		<div class="camera-controls">
@@ -72,6 +71,7 @@
 		</template>
 	</main>
 
+	<script src="/static/js/vendor/html5-qrcode.min.js"></script>
 	<script src="/static/js/scan.js"></script>
 </body>
 </html>

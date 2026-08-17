@@ -2,16 +2,8 @@ package handlers
 
 import (
 	"database/sql"
-	"encoding/base64"
 	"encoding/json"
-	"image"
-	_ "image/jpeg"
-	_ "image/png"
 	"net/http"
-	"strings"
-
-	"github.com/makiuchi-d/gozxing"
-	"github.com/makiuchi-d/gozxing/qrcode"
 )
 
 type Peserta struct {
@@ -38,41 +30,6 @@ func ScanPage(w http.ResponseWriter, r *http.Request, pic string) {
 	render(w, "scan.html", map[string]any{"PIC": pic})
 }
 
-// decodeQRFromDataURL menerima gambar dalam bentuk data URL (hasil canvas.toDataURL di browser)
-// dan mengembalikan teks yang tertulis pada QR code, di-decode sepenuhnya di sisi server.
-func decodeQRFromDataURL(dataURL string) (string, error) {
-	idx := strings.Index(dataURL, ",")
-	if idx == -1 {
-		return "", errBadImage
-	}
-	raw, err := base64.StdEncoding.DecodeString(dataURL[idx+1:])
-	if err != nil {
-		return "", err
-	}
-
-	img, _, err := image.Decode(strings.NewReader(string(raw)))
-	if err != nil {
-		return "", err
-	}
-
-	bmp, err := gozxing.NewBinaryBitmapFromImage(img)
-	if err != nil {
-		return "", err
-	}
-
-	result, err := qrcode.NewQRCodeReader().Decode(bmp, nil)
-	if err != nil {
-		return "", err
-	}
-	return result.GetText(), nil
-}
-
-var errBadImage = &qrError{"format gambar tidak valid"}
-
-type qrError struct{ msg string }
-
-func (e *qrError) Error() string { return e.msg }
-
 func ApiScan(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		pic, ok := currentPIC(r)
@@ -81,23 +38,19 @@ func ApiScan(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		// Batasi ukuran foto (max ~8MB) supaya satu klien nakal/rusak tidak bisa
-		// membanjiri memori server dengan payload raksasa.
-		r.Body = http.MaxBytesReader(w, r.Body, 8<<20)
-
 		var body struct {
-			Image string `json:"image"`
+			Text string `json:"text"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		if err := decodeBody(r, &body); err != nil {
 			writeJSON(w, http.StatusBadRequest, scanResponse{Status: false, Message: "Body tidak valid"})
 			return
 		}
-
-		noPeserta, err := decodeQRFromDataURL(body.Image)
-		if err != nil {
-			writeJSON(w, http.StatusOK, scanResponse{Status: false, Message: "QR code tidak terbaca, coba lagi"})
+		if body.Text == "" {
+			writeJSON(w, http.StatusOK, scanResponse{Status: false, Message: "QR kosong"})
 			return
 		}
+
+		noPeserta := lastN(body.Text, 8)
 
 		p, found, err := findPeserta(db, noPeserta)
 		if err != nil {
@@ -113,6 +66,18 @@ func ApiScan(db *sql.DB) http.HandlerFunc {
 		}
 		writeJSON(w, http.StatusOK, scanResponse{Status: true, Found: true, Peserta: p})
 	}
+}
+
+// lastN meniru "decodedText.slice(-8)" di scan_id.php milik CI: QR fisik yang
+// dipakai acara ini meng-encode string yang lebih panjang (URL/kode), dan
+// no_peserta sebenarnya adalah N karakter terakhirnya. Kalau teksnya lebih
+// pendek dari n, dipakai apa adanya (sama seperti perilaku slice() di JS).
+func lastN(s string, n int) string {
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	return string(r[len(r)-n:])
 }
 
 func findPeserta(db *sql.DB, noPeserta string) (*Peserta, bool, error) {

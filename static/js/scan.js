@@ -1,5 +1,3 @@
-const video = document.getElementById("video");
-const canvas = document.getElementById("canvas");
 const btnStart = document.getElementById("btnStart");
 const btnStop = document.getElementById("btnStop");
 const scanStatus = document.getElementById("scanStatus");
@@ -7,8 +5,6 @@ const resultBox = document.getElementById("result");
 const syncBar = document.getElementById("syncBar");
 const btnSync = document.getElementById("btnSync");
 
-let stream = null;
-let scanTimer = null;
 let scanning = true; // false saat sedang menampilkan hasil, supaya tidak tumpang tindih
 
 // ---- Backup & antrian offline (localStorage) ----
@@ -104,61 +100,75 @@ if (btnSync) btnSync.addEventListener("click", syncPending);
 updateSyncBar();
 syncPending();
 
+// Decode QR dilakukan LANGSUNG DI BROWSER (bukan kirim foto ke server) --
+// pendekatan yang sama dipakai CI (html5-qrcode), yang terbukti jauh lebih
+// andal untuk kamera HP asli dibanding decode dari snapshot di server: frame
+// diproses berkali-kali per detik dengan feedback langsung, bukan 1 foto tiap
+// 1.2 detik yang gampang kena blur/fokus meleset.
+const html5QrCode = new Html5Qrcode("reader");
+let cameraStarted = false;
+
 async function startCamera() {
+	if (cameraStarted) return;
+
+	const config = {
+		fps: 10,
+		qrbox: { width: 250, height: 250 },
+	};
+
 	try {
-		stream = await navigator.mediaDevices.getUserMedia({
-			video: { facingMode: "environment" },
-		});
-		video.srcObject = stream;
+		await html5QrCode.start({ facingMode: "environment" }, config, onDecoded, onDecodeAttemptFailed);
+		cameraStarted = true;
 		btnStart.hidden = true;
 		btnStop.hidden = false;
 		scanStatus.textContent = "Mengarahkan kamera ke QR code...";
 		scanning = true;
-		scanTimer = setInterval(captureAndScan, 1200);
 	} catch (err) {
-		// Gagal (izin ditolak / tidak ada kamera) -- tampilkan tombol supaya
-		// petugas bisa coba lagi setelah memperbaiki izin browser.
 		btnStart.hidden = false;
 		btnStop.hidden = true;
-		scanStatus.textContent = "Gagal akses kamera: " + err.message;
+		scanStatus.textContent = "Gagal akses kamera: " + err;
 	}
 }
 
-function stopCamera() {
-	if (scanTimer) clearInterval(scanTimer);
-	if (stream) stream.getTracks().forEach((t) => t.stop());
-	video.srcObject = null;
+async function stopCamera() {
+	if (!cameraStarted) return;
+	try {
+		await html5QrCode.stop();
+	} catch {
+		// abaikan -- kamera mungkin sudah berhenti sendiri
+	}
+	cameraStarted = false;
 	btnStart.hidden = false;
 	btnStop.hidden = true;
 	scanStatus.textContent = "";
 }
 
-let captureInFlight = false; // cegah foto baru ditembak sebelum foto sebelumnya selesai diproses server
+// Dipanggil html5-qrcode tiap frame yang GAGAL didecode -- normal (kamera belum
+// pas ke QR), jangan diapa-apakan, cuma supaya callback wajib ini tidak error.
+function onDecodeAttemptFailed() {}
 
-async function captureAndScan() {
-	if (!scanning || captureInFlight || video.readyState < 2) return;
+async function onDecoded(decodedText) {
+	if (!scanning) return; // lagi menampilkan hasil sebelumnya, abaikan dulu
+	scanning = false;
 
-	canvas.width = video.videoWidth;
-	canvas.height = video.videoHeight;
-	canvas.getContext("2d").drawImage(video, 0, 0);
-	const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
-
-	captureInFlight = true;
-	scanStatus.textContent = "Memindai...";
+	// Bekukan preview kamera (tanpa restart stream) selagi hasil ditampilkan --
+	// lebih cepat pulih daripada stop()/start() ulang tiap ganti peserta.
 	try {
-		const res = await fetch("/api/scan", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ image: dataUrl }),
-		});
-		const data = await res.json();
+		html5QrCode.pause(true);
+	} catch {
+		// beberapa browser melempar kalau dipause di momen yang salah, aman diabaikan
+	}
+
+	scanStatus.textContent = "Memproses...";
+	try {
+		const data = await sendJSON("/api/scan", { text: decodedText });
 
 		if (!data.status) {
-			scanStatus.textContent = data.message || "QR belum terbaca";
+			scanStatus.textContent = data.message || "Gagal memproses QR";
+			resumeScan();
 			return;
 		}
 
-		scanning = false;
 		scanStatus.textContent = "QR terbaca!";
 		if (data.found) {
 			showFound(data.peserta);
@@ -167,8 +177,7 @@ async function captureAndScan() {
 		}
 	} catch (err) {
 		scanStatus.textContent = "Gagal terhubung ke server";
-	} finally {
-		captureInFlight = false;
+		resumeScan();
 	}
 }
 
@@ -268,6 +277,13 @@ function resumeScan() {
 	resultBox.innerHTML = "";
 	scanning = true;
 	scanStatus.textContent = "Mengarahkan kamera ke QR code...";
+	if (cameraStarted) {
+		try {
+			html5QrCode.resume();
+		} catch {
+			// kalau resume gagal (misal belum sempat pause), tidak fatal
+		}
+	}
 }
 
 btnStart.addEventListener("click", startCamera);

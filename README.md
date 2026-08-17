@@ -1,8 +1,11 @@
 # registrasi-go
 
 Aplikasi scan QR code untuk registrasi & check-in peserta. Backend Go (SQLite, pure-Go, tanpa CGO)
-+ frontend HTML/CSS/JS biasa (tanpa framework/CDN) supaya ringan. QR code di-decode di server
-(pakai gozxing) dari foto yang diambil browser via kamera.
++ frontend HTML/CSS/JS biasa (tanpa framework/CDN) supaya ringan. QR code di-decode **langsung di
+browser** pakai `html5-qrcode` (di-vendor lokal, sama library yang dipakai CI di `scan_id.php` —
+disamakan setelah decode di server terbukti kurang andal untuk kamera HP asli dibanding decode
+kontinu langsung dari live video seperti yang CI lakukan). Browser cuma kirim **teks hasil decode**
+ke server, bukan foto.
 
 Sistem utama tetap **CI** (PHP CodeIgniter di `../registrasi`). App ini adalah alat bantu scan yang
 cepat & tahan putus koneksi: semua aksi ditulis dulu ke SQLite lokal (instan, tidak pernah menunggu
@@ -37,8 +40,12 @@ Tambah PIC lain langsung lewat SQLite (`data/registrasi.db`), tabel `pic`.
 ## Alur
 
 1. Login sebagai PIC (`/login`).
-2. `/scan` — kamera otomatis nyala saat halaman dibuka, foto otomatis dikirim ke server tiap ~1.2
-   detik dan di-decode di sisi Go (butuh koneksi ke server Go saat itu juga, karena decode-nya di server).
+2. `/scan` — kamera otomatis nyala saat halaman dibuka, `html5-qrcode` decode QR langsung dari live
+   video di browser (~10fps, tanpa perlu foto/round-trip jaringan untuk baca QR-nya). Setelah teks
+   ke-decode, cuma teks itu (bukan gambar) yang dikirim ke `/api/scan`. 8 karakter terakhir dari teks
+   dipakai sebagai `no_peserta` — meniru persis `decodedText.slice(-8)` di `scan_id.php` milik CI,
+   karena QR fisik acara ini meng-encode string lebih panjang (URL/kode) dan bagian akhirnya yang
+   jadi ID sebenarnya.
 3. Jika kode sudah dikenal secara lokal → tampil data peserta + tombol **Check-in**.
 4. Jika belum → petugas cukup input **noreg**. App ini query **langsung ke MSSQL**
    (`KARYAWAN.dbo.DB_PEGAWAI`, logika sama persis dengan `simpan_daftar()` yang dulu ada di CI) untuk
@@ -66,15 +73,18 @@ percobaan sebelumnya sudah dihapus lagi karena sekarang tidak diperlukan.)
   dari sisi server.
 - SQLite dijalankan dalam mode **WAL** — pembacaan (lookup saat scan) tidak antre di belakang
   penulisan (checkin/registrasi/log), jadi lookup tetap cepat walau banyak petugas checkin bersamaan.
-- Decode QR (CPU-bound) berjalan paralel per request memakai banyak core.
+- Decode QR tidak lagi membebani server sama sekali (dipindah ke browser) — server cuma terima teks
+  pendek hasil decode, jauh lebih ringan dibanding proses+kirim foto tiap 1.2 detik.
 - Sync ke MSSQL tidak memblokir petugas — checkin selalu instan secara lokal, dan didorong ke MSSQL
   di background terlepas dari cepat/lambatnya jaringan ke server database.
 
 ## Struktur
 
-- `main.go` — routing (`net/http` ServeMux bawaan Go 1.22+, tanpa router pihak ketiga) + buka koneksi MSSQL + start worker sync
+- `main.go` — routing (`net/http` ServeMux bawaan Go 1.22+, tanpa router pihak ketiga) + `.env`
+  loader + buka koneksi MSSQL + start worker sync
 - `db/` — koneksi SQLite (WAL) + migrasi schema otomatis
-- `handlers/` — login/session, scan+decode QR, checkin, registrasi, riwayat, sync ke MSSQL (`sync.go`)
+- `handlers/` — login/session, scan (terima teks hasil decode), checkin, registrasi, riwayat, sync ke MSSQL (`sync.go`)
 - `templates/` — halaman HTML (`html/template`, tanpa JS framework)
-- `static/` — CSS & JS vanilla (capture kamera via `getUserMedia`, backup lokal di `localStorage`)
+- `static/js/vendor/html5-qrcode.min.js` — library decode QR client-side (di-vendor lokal, sama versi dipakai CI)
+- `static/` — CSS & JS vanilla (kamera lewat `html5-qrcode`, backup lokal di `localStorage`)
 - `data/registrasi.db` — file database SQLite (dibuat otomatis)
