@@ -80,6 +80,10 @@ func openMSSQL() *sql.DB {
 
 	q := url.Values{}
 	q.Add("database", dbname)
+	// Server MSSQL ini cuma bisa TLS 1.0, yang ditolak Go (minimum TLS-nya lebih
+	// tinggi) -- CI sendiri juga sudah nonaktifkan enkripsi ke server yang sama
+	// ('encrypt' => FALSE di database.php), jadi disamakan di sini.
+	q.Add("encrypt", "disable")
 	dsn := (&url.URL{
 		Scheme:   "sqlserver",
 		User:     url.UserPassword(user, pass),
