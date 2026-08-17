@@ -30,7 +30,7 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
+	mux.Handle("GET /static/", noCache(http.StripPrefix("/static/", http.FileServer(http.Dir("static")))))
 
 	mux.HandleFunc("GET /login", handlers.LoginPage)
 	mux.HandleFunc("POST /login", handlers.LoginSubmit(conn))
@@ -106,6 +106,18 @@ func openMSSQL() *sql.DB {
 		log.Printf("MSSQL: terkoneksi ke %s:%s/%s", host, port, dbname)
 	}
 	return conn
+}
+
+// noCache mencegah browser (terutama mobile) menyimpan versi lama JS/CSS --
+// app ini sering di-update saat event berlangsung, dan static asset yang
+// ke-cache lama adalah sumber bug klasik "sudah diperbaiki tapi masih gagal".
+func noCache(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
+		next.ServeHTTP(w, r)
+	})
 }
 
 func getenvDefault(key, fallback string) string {

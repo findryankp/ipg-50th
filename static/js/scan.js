@@ -1,5 +1,6 @@
 const btnStart = document.getElementById("btnStart");
 const btnStop = document.getElementById("btnStop");
+const cameraSelect = document.getElementById("cameraSelect");
 const scanStatus = document.getElementById("scanStatus");
 const resultBox = document.getElementById("result");
 const syncBar = document.getElementById("syncBar");
@@ -107,6 +108,48 @@ syncPending();
 // 1.2 detik yang gampang kena blur/fokus meleset.
 const html5QrCode = new Html5Qrcode("reader");
 let cameraStarted = false;
+let selectedCameraId = null; // null = pakai facingMode "environment" (default browser)
+
+// Banyak HP modern punya beberapa lensa "belakang" (wide, ultra-wide, macro).
+// facingMode:"environment" tanpa spesifikasi bisa memilih lensa yang salah
+// (mis. ultra-wide yang fisheye/susah fokus dekat) -- itu penyebab umum QR
+// "selalu gagal dibaca" padahal kamera menyala normal. Kasih petugas pilihan
+// manual supaya bisa pindah ke lensa yang benar.
+async function loadCameraList() {
+	let cameras = [];
+	try {
+		cameras = await Html5Qrcode.getCameras();
+	} catch {
+		return; // gagal enumerasi (izin belum diberikan, browser tidak dukung, dst) -- ga masalah, tetap bisa scan pakai facingMode default
+	}
+	if (!cameras || cameras.length <= 1) {
+		cameraSelect.hidden = true;
+		return;
+	}
+
+	cameraSelect.innerHTML = "";
+	cameras.forEach((cam, i) => {
+		const opt = document.createElement("option");
+		opt.value = cam.id;
+		opt.textContent = cam.label || `Kamera ${i + 1}`;
+		cameraSelect.appendChild(opt);
+	});
+	cameraSelect.hidden = false;
+
+	// Default: kamera dengan label mengandung "back"/rear kalau ada, kalau tidak
+	// pakai heuristik umum -- kamera belakang utama biasanya urutan terakhir.
+	const backCam = cameras.find((c) => /back|rear|belakang|environment/i.test(c.label));
+	selectedCameraId = (backCam || cameras[cameras.length - 1]).id;
+	cameraSelect.value = selectedCameraId;
+}
+
+cameraSelect.addEventListener("change", async () => {
+	selectedCameraId = cameraSelect.value;
+	if (cameraStarted) {
+		await stopCamera();
+		await startCamera();
+	}
+});
 
 async function startCamera() {
 	if (cameraStarted) return;
@@ -115,14 +158,16 @@ async function startCamera() {
 		fps: 10,
 		qrbox: { width: 250, height: 250 },
 	};
+	const cameraTarget = selectedCameraId ? { deviceId: { exact: selectedCameraId } } : { facingMode: "environment" };
 
 	try {
-		await html5QrCode.start({ facingMode: "environment" }, config, onDecoded, onDecodeAttemptFailed);
+		await html5QrCode.start(cameraTarget, config, onDecoded, onDecodeAttemptFailed);
 		cameraStarted = true;
 		btnStart.hidden = true;
 		btnStop.hidden = false;
 		scanStatus.textContent = "Mengarahkan kamera ke QR code...";
 		scanning = true;
+		if (!cameraSelect.options.length) loadCameraList(); // isi daftar kamera setelah izin didapat
 	} catch (err) {
 		btnStart.hidden = false;
 		btnStop.hidden = true;
