@@ -50,7 +50,7 @@ func main() {
 	// Timeout eksplisit supaya satu klien yang lambat/macet (koneksi jelek di venue)
 	// tidak menahan resource server dan mengganggu petugas lain.
 	srv := &http.Server{
-		Addr:         ":8082",
+		Addr:         ":8083",
 		Handler:      mux,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
