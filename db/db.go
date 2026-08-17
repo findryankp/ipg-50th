@@ -3,6 +3,8 @@ package db
 import (
 	"database/sql"
 	"log"
+	"os"
+	"path/filepath"
 
 	_ "modernc.org/sqlite"
 )
@@ -56,6 +58,15 @@ CREATE INDEX IF NOT EXISTS idx_sync_queue_status ON sync_queue(status);
 `
 
 func Open(path string) *sql.DB {
+	// Folder tujuan (misal "data/") tidak dilacak git kalau kosong, jadi bisa
+	// saja tidak ada begitu repo di-copy/clone ke server lain -- buat dulu
+	// supaya sqlite tidak gagal dengan "unable to open database file".
+	if dir := filepath.Dir(path); dir != "." {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			log.Fatalf("gagal membuat folder database %q: %v", dir, err)
+		}
+	}
+
 	// WAL: pembacaan (lookup peserta saat scan) tidak perlu antre di belakang
 	// penulisan (checkin/registrasi/log), jadi throughput scan bersamaan jauh
 	// lebih baik dibanding mode default (rollback journal, 1 koneksi total).
